@@ -23,6 +23,7 @@ require (
 	github.com/go-openapi/strfmt v0.21.7 // indirect
 	github.com/go-openapi/swag v0.22.4 // indirect
 	github.com/go-openapi/validate v0.22.1 // indirect
+	github.com/go-resty/resty/v2 v2.10.0 // indirect
 	github.com/go-swagger/go-swagger v0.30.5 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/uuid v1.3.1 // indirect
