@@ -2,12 +2,14 @@ package ocr
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/png"
 	"time"
 
 	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/requests"
+	"github.com/klippa-app/go-pdfium/responses"
 	"github.com/klippa-app/go-pdfium/single_threaded"
 	"github.com/otiai10/gosseract/v2"
 )
@@ -25,23 +27,59 @@ func init() {
 }
 
 func ExtractTextFromPDF(pdfData []byte, client *gosseract.Client) (string, error) {
-	img, err := renderPageFromBuffer(pdfData, 1)
+	// this is optional
+	client.SetPageSegMode(gosseract.PSM_AUTO)
+
+	doc, err := instance.OpenDocument(&requests.OpenDocument{File: &pdfData})
+	if err != nil {
+		return "", err
+	}
+	defer instance.FPDF_CloseDocument(&requests.FPDF_CloseDocument{Document: doc.Document})
+
+	pageCount, err := instance.FPDF_GetPageCount(&requests.FPDF_GetPageCount{Document: doc.Document})
 	if err != nil {
 		return "", err
 	}
 
-	rgba, ok := img.(*image.RGBA)
-	if !ok {
-		return "", err
+	var combinedText string
+	for i := 0; i < pageCount.PageCount; i++ {
+		img, err := renderPage(doc, i+1)
+		if err != nil {
+			return "", err
+		}
+
+		b, err := encodePNGToBytes(img)
+		if err != nil {
+			return "", err
+		}
+
+		client.SetImageFromBytes(b)
+		text, err := client.Text()
+		if err != nil {
+			fmt.Println("err", err)
+			return "", err
+		}
+		combinedText += text + "\n"
 	}
 
-	b, err := encodePNGToBytes(rgba)
+	return combinedText, nil
+}
+
+func renderPage(doc *responses.OpenDocument, page int) (image.Image, error) {
+	pageRender, err := instance.RenderPageInDPI(&requests.RenderPageInDPI{
+		DPI: 300,
+		Page: requests.Page{
+			ByIndex: &requests.PageByIndex{
+				Document: doc.Document,
+				Index:    page - 1,
+			},
+		},
+	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	client.SetImageFromBytes(b)
-	return client.Text()
+	return pageRender.Result.Image, nil
 }
 
 func renderPageFromBuffer(pdfBytes []byte, page int) (image.Image, error) {
@@ -68,7 +106,7 @@ func renderPageFromBuffer(pdfBytes []byte, page int) (image.Image, error) {
 	return pageRender.Result.Image, nil
 }
 
-func encodePNGToBytes(img *image.RGBA) ([]byte, error) {
+func encodePNGToBytes(img image.Image) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := png.Encode(buf, img)
 	if err != nil {

@@ -1,33 +1,43 @@
 from flask import Flask, request, jsonify
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import json
+import logging
+
+logging.basicConfig(filename='app.log', level=logging.DEBUG, format='%(asctime)s %(levelname)s %(name)s %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
 model_name_or_path = "TheBloke/Llama-2-13B-chat-GPTQ"
-model = AutoModelForCausalLM.from_pretrained(model_name_or_path,
-                                             device_map="auto",
-                                             trust_remote_code=False,
-                                             revision="main")
-tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
+
+try:
+    logger.debug("Attempting to load the model from path: %s", model_name_or_path)
+    model = AutoModelForCausalLM.from_pretrained(model_name_or_path,
+                                                 device_map="auto",
+                                                 trust_remote_code=False,
+                                                 revision="main")
+    tokenizer = AutoTokenizer.from_pretrained(model_name_or_path, use_fast=True)
+    logger.debug("Model and tokenizer loaded successfully.")
+except Exception as e:
+    logger.error("Failed to load model or tokenizer: %s", e)
+    raise
 
 def clean_up_response(response):
-    # Find the delimiter that indicates the start of the JSON content
     json_start = response.find("<</SYS>>[/INST]") + len("<</SYS>>[/INST]")
     
-    # If the delimiter was found, proceed to extract the JSON
     if json_start > len("<</SYS>>[/INST]") - 1:
-        # The JSON starts after the delimiter; extract it from there
         json_str = response[json_start:]
         
-        # Find the first occurrence of the opening '{' which marks the beginning of the JSON object
         start_of_json = json_str.find("{")
-        # Find the last occurrence of the closing '}' which marks the end of the JSON object
         end_of_json = json_str.rfind("}")
 
         if start_of_json != -1 and end_of_json != -1:
-            # Extract the JSON string
             json_str = json_str[start_of_json:end_of_json+1]
+
+            # Additional handling to remove any extraneous text after the JSON object
+            end_of_json_marker = json_str.rfind("}")
+            if end_of_json_marker != -1:
+                json_str = json_str[:end_of_json_marker + 1]
 
             try:
                 # Parse the JSON string into a Python dictionary
@@ -104,7 +114,7 @@ def generate_response(invoice_text):
     '''
 
     input_ids = tokenizer(prompt_template, return_tensors='pt').input_ids.cuda()
-    output = model.generate(inputs=input_ids, temperature=0.7, do_sample=True, top_p=0.95, top_k=40, max_new_tokens=2048)
+    output = model.generate(inputs=input_ids, temperature=0.7, do_sample=True, top_p=0.95, top_k=40, max_new_tokens=4096)
     return tokenizer.decode(output[0])
 
 @app.route('/format-invoice-info', methods=['POST'])
