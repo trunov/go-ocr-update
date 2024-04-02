@@ -12,11 +12,9 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/gorilla/mux"
-	"github.com/otiai10/gosseract/v2"
 )
 
 type Handler struct {
-	OCRClient   *gosseract.Client
 	RestyClient *resty.Client
 }
 
@@ -73,11 +71,9 @@ type APIResponse struct {
 }
 
 func NewHandler() *Handler {
-	client := gosseract.NewClient()
 	restyClient := resty.New()
 
 	return &Handler{
-		OCRClient:   client,
 		RestyClient: restyClient,
 	}
 }
