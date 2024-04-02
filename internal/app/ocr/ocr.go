@@ -55,6 +55,7 @@ func ExtractTextFromPDF(pdfData []byte) (string, error) {
 		return "", err
 	}
 
+	// this should use buffer not string since string is immutable
 	var combinedText string
 	for i := 0; i < pageCount.PageCount; i++ {
 		img, err := renderPage(doc, i+1)
@@ -78,7 +79,7 @@ func ExtractTextFromPDF(pdfData []byte) (string, error) {
 		}
 
 		for _, block := range resp.Blocks {
-			if block.BlockType == types.BlockTypeLine || block.BlockType == types.BlockTypeWord {
+			if block.BlockType == types.BlockTypeLine {
 				if block.Text != nil {
 					combinedText += *block.Text + " "
 				}
