@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	port = ":8080"
+	port = ":3000"
 )
 
 func startServer() {
@@ -23,5 +23,5 @@ func startServer() {
 	})
 
 	log.Printf("Running on port %s", port)
-	http.ListenAndServe(port, corsWrapper.Handler(r))
+	http.ListenAndServe("0.0.0.0"+port, corsWrapper.Handler(r))
 }
